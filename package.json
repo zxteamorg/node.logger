@@ -15,7 +15,6 @@
 	],
 	"license": "MIT",
 	"devDependencies": {
-		"@types/lodash": "^4.14.118",
 		"@types/mocha": "^5.2.5",
 		"@types/node": "^10.12.9",
 		"@zxnode/build": "0.0.27",

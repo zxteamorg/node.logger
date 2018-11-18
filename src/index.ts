@@ -116,5 +116,5 @@ export function setEngine(newEngine: LoggerFactory) {
 }
 
 export const dummyLogger: LoggerFactory = Dummy.instance;
-export const logger: LoggerFactory = Object.freeze({ getLogger });
-export default logger;
+export const loggerFactory: LoggerFactory = Object.freeze({ getLogger });
+export default loggerFactory;
