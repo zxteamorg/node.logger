@@ -31,7 +31,7 @@ function getFallBackLoggerEngine(category: string) {
 				const log4jsConfig: log4js.Configuration = JSON.parse(fileContent);
 				Object.keys(log4jsConfig.categories).forEach(c => log4jsConfig.categories[c].level = logLevel);
 				console.error(`Note: Log Level was overriden by value from LOG_LEVEL environment variable for '${logLevel}'`);
-				config = fileContent;
+				config = log4jsConfig;
 			}
 		} else {
 			if (logLevel !== undefined) {
