@@ -1,73 +1,113 @@
 import * as log4js from "log4js";
 
-export interface Logger {
-	isTraceEnabled(): boolean;
-	isDebugEnabled(): boolean;
-	isInfoEnabled(): boolean;
-	isWarnEnabled(): boolean;
-	isErrorEnabled(): boolean;
-	isFatalEnabled(): boolean;
-
-	trace(message: string, ...args: any[]): void;
-	debug(message: string, ...args: any[]): void;
-	info(message: string, ...args: any[]): void;
-	warn(message: string, ...args: any[]): void;
-	error(message: string, ...args: any[]): void;
-	fatal(message: string, ...args: any[]): void;
-}
+import { LoggerLike } from "@zxteam/contract";
 
 export interface LoggerFactory {
-	getLogger(category: string): Logger;
+	getLogger(category: string): LoggerLike;
 }
+
+const G: any = global || window || {};
 
 const LOGGER_ENGINE_KEY: symbol = Symbol.for("@zxteam/logger/main"); // create a unique, global symbol name
-if (!(LOGGER_ENGINE_KEY in global)) {
-	(global as any)[LOGGER_ENGINE_KEY] = null;
-}
-
 const FALLBACK_LOGGER_ENGINE_KEY: symbol = Symbol.for("@zxteam/logger/fallback"); // create a unique, global symbol name
-if (!(FALLBACK_LOGGER_ENGINE_KEY in global)) {
-	if (process.env.LOG4JS_CONFIG) {
-		log4js.configure(process.env.LOG4JS_CONFIG);
-	} else {
-		// Use default log4js configuration
-		log4js.configure({
-			appenders: { console: { type: "console" } },
-			categories: {
-				default: {
-					appenders: ["console"],
-					level: "info"
-				}
-			}
-		});
-	}
-	(global as any)[FALLBACK_LOGGER_ENGINE_KEY] = log4js;
+
+
+if (!(LOGGER_ENGINE_KEY in G)) {
+	G[LOGGER_ENGINE_KEY] = null;
 }
 
-class Dummy implements LoggerFactory {
-	public static instance: LoggerFactory = new Dummy();
+function getFallBackLoggerEngine(category: string) {
+	if (!(FALLBACK_LOGGER_ENGINE_KEY in G)) {
+		const logLevel: string | undefined = process && process.env && process.env.LOG_LEVEL;
 
-	public getLogger(category: string): Logger {
+		let config: string | log4js.Configuration;
+
+		if (process && process.env && process.env.LOG4JS_CONFIG) {
+			const configFile = process.env.LOG4JS_CONFIG;
+			if (logLevel === undefined) {
+				config = configFile;
+			} else {
+				const fileContent = require("fs").readFileSync(configFile, "utf-8");
+				const log4jsConfig: log4js.Configuration = JSON.parse(fileContent);
+				Object.keys(log4jsConfig.categories).forEach(c => log4jsConfig.categories[c].level = logLevel);
+				console.error(`Note: Log Level was overriden by value from LOG_LEVEL environment variable for '${logLevel}'`);
+				config = fileContent;
+			}
+		} else {
+			if (logLevel !== undefined) {
+				console.error(`Note: Log Level was set by value from LOG_LEVEL environment variable for '${logLevel}'`);
+			}
+			// Use default log4js configuration
+			config = {
+				appenders: { console: { type: "console" } },
+				categories: {
+					default: {
+						appenders: ["console"],
+						level: logLevel || "info"
+					}
+				}
+			};
+		}
+		G[FALLBACK_LOGGER_ENGINE_KEY] = new Log4jsFactory(config);
+	}
+
+	return G[FALLBACK_LOGGER_ENGINE_KEY].getLogger(category);
+}
+
+class DummyLoggerFactory implements LoggerFactory {
+	public static instance: LoggerFactory = new DummyLoggerFactory();
+
+	public getLogger(category: string): LoggerLike {
 		const dummyLog: any = {};
 
 		["trace", "debug", "info", "warn", "error", "fatal"].forEach(level => {
-			dummyLog[level] = () => {/**/ };
+			dummyLog[level] = () => {/* just a stub */ };
 			const capitalizeLevel = level.charAt(0).toUpperCase() + level.substr(1);
-			dummyLog[`is${capitalizeLevel}Enabled`] = () => false;
+			Object.defineProperty(dummyLog, `is${capitalizeLevel}Enabled`, {
+				get: () => false
+			});
 		});
 
 		return Object.freeze(dummyLog);
 	}
 }
 
-function getLogger(category: string): Logger {
-	let prevEngine: Logger | null = null;
-	let innerLogger: Logger | null = null;
+class Log4jsFactory implements LoggerFactory {
+	private readonly _wrap: log4js.Log4js;
+
+	public constructor(config: string | log4js.Configuration) {
+		if (typeof config === "string") {
+			this._wrap = log4js.configure(config);
+		} else {
+			this._wrap = log4js.configure(config);
+		}
+	}
+
+	public getLogger(category: string): LoggerLike {
+		const loggerWrap: any = this._wrap.getLogger(category);
+
+		const logger: any = {};
+
+		["trace", "debug", "info", "warn", "error", "fatal"].forEach(level => {
+			logger[level] = (...args: any[]) => loggerWrap[level](...args);
+			const capitalizeLevel = level.charAt(0).toUpperCase() + level.substr(1);
+			Object.defineProperty(logger, `is${capitalizeLevel}Enabled`, {
+				get: () => loggerWrap[`is${capitalizeLevel}Enabled`]()
+			});
+		});
+
+		return logger;
+	}
+}
+
+function getLogger(category: string): LoggerLike {
+	let prevEngine: LoggerLike | null = null;
+	let innerLogger: LoggerLike | null = null;
 
 	const loggerImpl: any = {};
 
 	function getUnderlayingLog() {
-		const currentEngine = (global as any)[LOGGER_ENGINE_KEY];
+		const currentEngine = G[LOGGER_ENGINE_KEY];
 
 		if (innerLogger !== null) {
 			if (prevEngine === currentEngine) {
@@ -86,19 +126,21 @@ function getLogger(category: string): Logger {
 			innerLogger = null;
 		}
 
-		return (global as any)[FALLBACK_LOGGER_ENGINE_KEY].getLogger(category);
+		return getFallBackLoggerEngine(category);
 	}
 
 	["trace", "debug", "info", "warn", "error", "fatal"].forEach(level => {
 		loggerImpl[level] = (...args: Array<any>) => { getUnderlayingLog()[level](...args); };
 		const capitalizeLevel = level.charAt(0).toUpperCase() + level.substr(1);
-		loggerImpl[`is${capitalizeLevel}Enabled`] = () => getUnderlayingLog()[`is${capitalizeLevel}Enabled`]();
+		Object.defineProperty(loggerImpl, `is${capitalizeLevel}Enabled`, {
+			get: () => getUnderlayingLog()[`is${capitalizeLevel}Enabled`]
+		});
 	});
 
 	return loggerImpl;
 }
 
-export function getEngine(): LoggerFactory { return (global as any)[LOGGER_ENGINE_KEY]; }
+export function getEngine(): LoggerFactory { return G[LOGGER_ENGINE_KEY]; }
 
 export function setEngine(newEngine: LoggerFactory) {
 	if (newEngine !== null) {
@@ -111,9 +153,9 @@ export function setEngine(newEngine: LoggerFactory) {
 			);
 		}
 	}
-	(global as any)[LOGGER_ENGINE_KEY] = newEngine;
+	G[LOGGER_ENGINE_KEY] = newEngine;
 }
 
-export const dummyLogger: LoggerFactory = Dummy.instance;
+export const dummyLogger: LoggerFactory = DummyLoggerFactory.instance;
 export const loggerFactory: LoggerFactory = Object.freeze({ getLogger });
 export default loggerFactory;
