@@ -1,7 +1,7 @@
 {
 	"name": "@zxteam/logger",
-	"version": "1.0.0",
-	"description": "TBD",
+	"version": "2.0.0",
+	"description": "ZXTeam's Logger Facade",
 	"author": {
 		"name": "Maxim Anurin",
 		"email": "maxim.anurin@zxteam.org",
@@ -15,11 +15,11 @@
 	],
 	"license": "MIT",
 	"devDependencies": {
-		"@types/node": "^10.12.19",
+		"@types/node": "^10.12.24",
 		"@zxnode/build": "0.0.30"
 	},
 	"dependencies": {
-		"@zxteam/contract": "^1.0.6",
+		"@zxteam/contract": "^2.0.0",
 		"log4js": "4.0.1"
 	},
 	"keywords": [],
