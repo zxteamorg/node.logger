@@ -1,6 +1,6 @@
 import * as log4js from "log4js";
 
-import { LoggerLike } from "@zxteam/contract";
+import { Logger as LoggerLike } from "@zxteam/contract";
 
 export interface LoggerFactory {
 	getLogger(category: string): LoggerLike;

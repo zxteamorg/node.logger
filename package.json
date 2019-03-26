@@ -1,6 +1,6 @@
 {
 	"name": "@zxteam/logger",
-	"version": "2.0.0",
+	"version": "3.0.2",
 	"description": "ZXTeam's Logger Facade",
 	"author": {
 		"name": "Maxim Anurin",
@@ -10,17 +10,20 @@
 	"contributors": [
 		{
 			"name": "Serg Zgama",
-			"email": "serg.zgama@zxteam.org"
+			"email": "serhii.zghama@zxteam.org"
 		}
 	],
 	"license": "MIT",
-	"devDependencies": {
-		"@types/node": "^10.12.24",
-		"@zxnode/build": "0.0.30"
-	},
 	"dependencies": {
-		"@zxteam/contract": "^2.0.0",
-		"log4js": "4.0.1"
+		"@zxteam/contract": "^3.0.2",
+		"log4js": "^4.1.0"
+	},
+	"devDependencies": {
+		"@types/node": "^11.11.7",
+		"@zxnode/build": "0.0.32"
+	},
+	"engines": {
+		"node": ">=11"
 	},
 	"keywords": [],
 	"repository": {
