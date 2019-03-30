@@ -1,6 +1,6 @@
 {
 	"name": "@zxteam/logger",
-	"version": "3.0.2",
+	"version": "3.2.1",
 	"description": "ZXTeam's Logger Facade",
 	"author": {
 		"name": "Maxim Anurin",
@@ -9,13 +9,13 @@
 	},
 	"contributors": [
 		{
-			"name": "Serg Zgama",
+			"name": "Serhii Zghama",
 			"email": "serhii.zghama@zxteam.org"
 		}
 	],
 	"license": "MIT",
 	"dependencies": {
-		"@zxteam/contract": "^3.0.2",
+		"@zxteam/contract": "^3.2.1",
 		"log4js": "^4.1.0"
 	},
 	"devDependencies": {
