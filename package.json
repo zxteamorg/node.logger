@@ -1,6 +1,6 @@
 {
 	"name": "@zxteam/logger",
-	"version": "3.2.1",
+	"version": "4.0.0",
 	"description": "ZXTeam's Logger Facade",
 	"author": {
 		"name": "Maxim Anurin",
@@ -15,12 +15,12 @@
 	],
 	"license": "MIT",
 	"dependencies": {
-		"@zxteam/contract": "^3.2.1",
+		"@zxteam/contract": "^4.0.0",
 		"log4js": "^4.1.0"
 	},
 	"devDependencies": {
-		"@types/node": "^11.11.7",
-		"@zxnode/build": "0.0.32"
+		"@types/node": "^11.13.9",
+		"@zxnode/build": "^0.0.33"
 	},
 	"engines": {
 		"node": ">=11"

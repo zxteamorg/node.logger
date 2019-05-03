@@ -1,23 +1,27 @@
+const { name, version } = require(require("path").join(__dirname, "..", "package.json"));
+const G: any = global || window || {};
+const PACKAGE_GUARD: symbol = Symbol.for(name);
+if (PACKAGE_GUARD in G) {
+	throw new Error(`Conflict module version. Look like two different version loaded inside the process: ${G[PACKAGE_GUARD]} and ${version}`);
+}
+G[PACKAGE_GUARD] = version;
+
+import * as zxteam from "@zxteam/contract";
 import * as log4js from "log4js";
 
-import { Logger as LoggerLike } from "@zxteam/contract";
-
-export interface LoggerFactory {
-	getLogger(category: string): LoggerLike;
+export interface LoggerManager {
+	getLogger(category: string): zxteam.Logger;
 }
 
-const G: any = global || window || {};
+const LOGGER_FACTORY_KEY: symbol = Symbol.for("@zxteam/logger/current"); // create a unique, global symbol name
+const FALLBACK_LOGGER_FACTORY_KEY: symbol = Symbol.for("@zxteam/logger/fallback"); // create a unique, global symbol name
 
-const LOGGER_ENGINE_KEY: symbol = Symbol.for("@zxteam/logger/main"); // create a unique, global symbol name
-const FALLBACK_LOGGER_ENGINE_KEY: symbol = Symbol.for("@zxteam/logger/fallback"); // create a unique, global symbol name
-
-
-if (!(LOGGER_ENGINE_KEY in G)) {
-	G[LOGGER_ENGINE_KEY] = null;
+if (!(LOGGER_FACTORY_KEY in G)) {
+	G[LOGGER_FACTORY_KEY] = null;
 }
 
-function getFallBackLoggerEngine(category: string) {
-	if (!(FALLBACK_LOGGER_ENGINE_KEY in G)) {
+function getFallBackLoggerFactory(category: string) {
+	if (!(FALLBACK_LOGGER_FACTORY_KEY in G)) {
 		const logLevel: string | undefined = process && process.env && process.env.LOG_LEVEL;
 
 		let config: string | log4js.Configuration;
@@ -48,16 +52,14 @@ function getFallBackLoggerEngine(category: string) {
 				}
 			};
 		}
-		G[FALLBACK_LOGGER_ENGINE_KEY] = new Log4jsFactory(config);
+		G[FALLBACK_LOGGER_FACTORY_KEY] = new Log4jsManager(config);
 	}
 
-	return G[FALLBACK_LOGGER_ENGINE_KEY].getLogger(category);
+	return G[FALLBACK_LOGGER_FACTORY_KEY].getLogger(category);
 }
 
-class DummyLoggerFactory implements LoggerFactory {
-	public static instance: LoggerFactory = new DummyLoggerFactory();
-
-	public getLogger(category: string): LoggerLike {
+class DummyLoggerManager implements LoggerManager {
+	public getLogger(category: string): zxteam.Logger {
 		const dummyLog: any = {};
 
 		["trace", "debug", "info", "warn", "error", "fatal"].forEach(level => {
@@ -71,8 +73,7 @@ class DummyLoggerFactory implements LoggerFactory {
 		return Object.freeze(dummyLog);
 	}
 }
-
-class Log4jsFactory implements LoggerFactory {
+class Log4jsManager implements LoggerManager {
 	private readonly _wrap: log4js.Log4js;
 
 	public constructor(config: string | log4js.Configuration) {
@@ -83,7 +84,7 @@ class Log4jsFactory implements LoggerFactory {
 		}
 	}
 
-	public getLogger(category: string): LoggerLike {
+	public getLogger(category: string): zxteam.Logger {
 		const loggerWrap: any = this._wrap.getLogger(category);
 
 		const logger: any = {};
@@ -100,14 +101,14 @@ class Log4jsFactory implements LoggerFactory {
 	}
 }
 
-function getLogger(category: string): LoggerLike {
-	let prevEngine: LoggerLike | null = null;
-	let innerLogger: LoggerLike | null = null;
+function getLogger(category: string): zxteam.Logger {
+	let prevEngine: zxteam.Logger | null = null;
+	let innerLogger: zxteam.Logger | null = null;
 
 	const loggerImpl: any = {};
 
 	function getUnderlayingLog() {
-		const currentEngine = G[LOGGER_ENGINE_KEY];
+		const currentEngine = G[LOGGER_FACTORY_KEY];
 
 		if (innerLogger !== null) {
 			if (prevEngine === currentEngine) {
@@ -126,7 +127,7 @@ function getLogger(category: string): LoggerLike {
 			innerLogger = null;
 		}
 
-		return getFallBackLoggerEngine(category);
+		return getFallBackLoggerFactory(category);
 	}
 
 	["trace", "debug", "info", "warn", "error", "fatal"].forEach(level => {
@@ -140,22 +141,21 @@ function getLogger(category: string): LoggerLike {
 	return loggerImpl;
 }
 
-export function getEngine(): LoggerFactory { return G[LOGGER_ENGINE_KEY]; }
+export function getUnderlayingManager(): LoggerManager { return G[LOGGER_FACTORY_KEY]; }
 
-export function setEngine(newEngine: LoggerFactory) {
-	if (newEngine !== null) {
-		if (typeof newEngine !== "object") {
-			throw new Error("Trying to set wrong Engine. Logger Engine should be an object or null");
+export function setUnderlayingManager(newLoggerManager: LoggerManager) {
+	if (newLoggerManager !== null) {
+		if (typeof newLoggerManager !== "object") {
+			throw new Error("Trying to set wrong Logger Manager. Logger Manager should be an object or null");
 		}
-		if (typeof newEngine.getLogger !== "function") {
+		if (typeof newLoggerManager.getLogger !== "function") {
 			throw new Error(
-				"Trying to set wrong Logger Engine. Logger Engine object should contain a method getLogger(catalog)"
+				"Trying to set wrong Logger Manager. Logger Manager object should contain a method getLogger(catalog)"
 			);
 		}
 	}
-	G[LOGGER_ENGINE_KEY] = newEngine;
+	G[LOGGER_FACTORY_KEY] = newLoggerManager;
 }
 
-export const dummyLogger: LoggerFactory = DummyLoggerFactory.instance;
-export const loggerFactory: LoggerFactory = Object.freeze({ getLogger });
-export default loggerFactory;
+export const loggerManager: LoggerManager = Object.freeze({ getLogger });
+export default loggerManager;
