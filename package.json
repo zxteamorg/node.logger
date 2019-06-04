@@ -1,6 +1,6 @@
 {
 	"name": "@zxteam/logger",
-	"version": "4.0.0",
+	"version": "4.0.1",
 	"description": "ZXTeam's Logger Facade",
 	"author": {
 		"name": "Maxim Anurin",
