@@ -1,6 +1,6 @@
 {
 	"name": "@zxteam/logger",
-	"version": "4.0.1",
+	"version": "5.0.0",
 	"description": "ZXTeam's Logger Facade",
 	"author": {
 		"name": "ZXTeam",
