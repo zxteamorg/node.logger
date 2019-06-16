@@ -1,6 +1,6 @@
 {
 	"name": "@zxteam/logger",
-	"version": "5.0.0",
+	"version": "5.0.1",
 	"description": "ZXTeam's Logger Facade",
 	"author": {
 		"name": "ZXTeam",
@@ -20,7 +20,7 @@
 	],
 	"license": "MIT",
 	"dependencies": {
-		"@zxteam/contract": "^5.0.0",
+		"@zxteam/contract": "^5.0.1",
 		"log4js": "^4.1.0"
 	},
 	"devDependencies": {
