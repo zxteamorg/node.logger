@@ -1,17 +1,17 @@
 {
 	"name": "@zxteam/logger",
-	"version": "6.0.1",
+	"version": "6.0.7",
 	"description": "ZXTeam's Logger Facade",
 	"author": {
 		"name": "ZXTeam",
-		"email": "pub@project.zxteam.org",
-		"url": "http://www.zxteam.org"
+		"email": "pub@zxteam.org",
+		"url": "https://www.zxteam.org"
 	},
 	"contributors": [
 		{
 			"name": "Maxim Anurin",
 			"email": "maxim.anurin@zxteam.org",
-			"url": "http://www.anurin.name"
+			"url": "https://www.anurin.name"
 		},
 		{
 			"name": "Serhii Zghama",
@@ -20,11 +20,11 @@
 	],
 	"license": "MIT",
 	"dependencies": {
-		"@zxteam/contract": "^6.0.1",
+		"@zxteam/contract": "^6.0.7",
 		"log4js": "^4.5.1"
 	},
 	"devDependencies": {
-		"@types/node": "^11.13.17",
+		"@types/node": "^11.13.18",
 		"@zxnode/build": "^0.0.34"
 	},
 	"engines": {
@@ -33,16 +33,18 @@
 	"keywords": [],
 	"repository": {
 		"type": "git",
-		"url": "ssh://git@dev.zxteam.net:22282/pub/node/logger.git"
+		"url": "https://github.com/zxteamorg/node.logger.git"
 	},
 	"bugs": {
-		"url": "https://dev.zxteam.net/pub/node/logger/issues"
+		"url": "https://github.com/zxteamorg/node.logger/issues"
 	},
-	"homepage": "https://dev.zxteam.net/pub/node/logger",
+	"homepage": "https://github.com/zxteamorg/node.logger",
 	"scripts": {
-		"build": "zxbuild clean dist",
+		"build": "zxbuild clean dist && cp README.md .dist/",
 		"test": "nyc --exclude submodules --exclude test --extension=\".ts\" --reporter=lcov --reporter=text --reporter=text-summary mocha \"test/**/*.test.js\" --recursive",
 		"test:only": "mocha --require source-map-support/register \"test/**/*.test.js\" --recursive"
 	},
+	"main": "./src/index.js",
+	"types": "./src/index.d.ts",
 	"private": true
 }
