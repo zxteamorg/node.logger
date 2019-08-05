@@ -1,35 +1,106 @@
-const { name, version } = require(require("path").join(__dirname, "..", "package.json"));
+const { name: packageName, version: packageVersion } = require(require("path").join(__dirname, "..", "package.json"));
 const G: any = global || window || {};
-const PACKAGE_GUARD: symbol = Symbol.for(name);
+const PACKAGE_GUARD: symbol = Symbol.for(packageName);
 if (PACKAGE_GUARD in G) {
 	const conflictVersion = G[PACKAGE_GUARD];
 	// tslint:disable-next-line: max-line-length
-	const msg = `Conflict module version. Look like two different version of package ${name} was loaded inside the process: ${conflictVersion} and ${version}.`;
+	const msg = `Conflict module version. Look like two different version of package ${packageName} was loaded inside the process: ${conflictVersion} and ${packageVersion}.`;
 	if (process !== undefined && process.env !== undefined && process.env.NODE_ALLOW_CONFLICT_MODULES === "1") {
 		console.warn(msg + " This treats as warning because NODE_ALLOW_CONFLICT_MODULES is set.");
 	} else {
 		throw new Error(msg + " Use NODE_ALLOW_CONFLICT_MODULES=\"1\" to treats this error as warning.");
 	}
 } else {
-	G[PACKAGE_GUARD] = version;
+	G[PACKAGE_GUARD] = packageVersion;
 }
 
 import * as zxteam from "@zxteam/contract";
 import * as log4js from "log4js";
 
-export interface LoggerManager {
-	getLogger(category: string): zxteam.Logger;
+const ROOT_LOGGER_KEY: symbol = Symbol.for("@zxteam/logger/root"); // create a unique, global symbol name
+const FALLBACK_LOGGER_KEY: symbol = Symbol.for("@zxteam/logger/fallback"); // create a unique, global symbol name
+
+if (!(ROOT_LOGGER_KEY in G)) {
+	G[ROOT_LOGGER_KEY] = null;
+}
+if (!(FALLBACK_LOGGER_KEY in G)) {
+	G[FALLBACK_LOGGER_KEY] = null;
 }
 
-const LOGGER_FACTORY_KEY: symbol = Symbol.for("@zxteam/logger/current"); // create a unique, global symbol name
-const FALLBACK_LOGGER_FACTORY_KEY: symbol = Symbol.for("@zxteam/logger/fallback"); // create a unique, global symbol name
+export interface Logger {
+	readonly isTraceEnabled: boolean;
+	readonly isDebugEnabled: boolean;
+	readonly isInfoEnabled: boolean;
+	readonly isWarnEnabled: boolean;
+	readonly isErrorEnabled: boolean;
+	readonly isFatalEnabled: boolean;
 
-if (!(LOGGER_FACTORY_KEY in G)) {
-	G[LOGGER_FACTORY_KEY] = null;
+	trace(message: string, ...args: any[]): void;
+	debug(message: string, ...args: any[]): void;
+	info(message: string, ...args: any[]): void;
+	warn(message: string, ...args: any[]): void;
+	error(message: string, ...args: any[]): void;
+	fatal(message: string, ...args: any[]): void;
 }
 
-function getFallBackLoggerFactory(category: string) {
-	if (!(FALLBACK_LOGGER_FACTORY_KEY in G)) {
+export interface LoggerProvider {
+	getLogger(name?: string): Logger;
+}
+
+export class Log4jsLoggerProvider implements LoggerProvider {
+	private readonly _engine: log4js.Log4js;
+
+	public constructor(config: string | log4js.Configuration) {
+		if (typeof config === "string") {
+			this._engine = log4js.configure(config);
+		} else {
+			this._engine = log4js.configure(config);
+		}
+	}
+
+	public getLogger(name: string): Logger {
+		const loggerInstance: log4js.Logger = this._engine.getLogger(name);
+		return new Log4jsLogger(loggerInstance);
+	}
+}
+
+export class Log4jsLogger implements Logger {
+	private readonly _wrap: log4js.Logger;
+
+	public constructor(wrap: log4js.Logger) { this._wrap = wrap; }
+
+	public get isTraceEnabled(): boolean { return this._wrap.isTraceEnabled(); }
+	public get isDebugEnabled(): boolean { return this._wrap.isTraceEnabled(); }
+	public get isInfoEnabled(): boolean { return this._wrap.isTraceEnabled(); }
+	public get isWarnEnabled(): boolean { return this._wrap.isTraceEnabled(); }
+	public get isErrorEnabled(): boolean { return this._wrap.isTraceEnabled(); }
+	public get isFatalEnabled(): boolean { return this._wrap.isTraceEnabled(); }
+
+	public trace(message: string, ...args: any[]): void { this._wrap.trace(message, ...args); }
+	public debug(message: string, ...args: any[]): void { this._wrap.debug(message, ...args); }
+	public info(message: string, ...args: any[]): void { this._wrap.info(message, ...args); }
+	public warn(message: string, ...args: any[]): void { this._wrap.warn(message, ...args); }
+	public error(message: string, ...args: any[]): void { this._wrap.error(message, ...args); }
+	public fatal(message: string, ...args: any[]): void { this._wrap.fatal(message, ...args); }
+}
+
+export function setLoggerProvider(loggerProvider: LoggerProvider | null) {
+	if (loggerProvider !== null) {
+		if (typeof loggerProvider !== "object") {
+			throw new Error("Trying to set wrong Logger Provider. Logger Provider should be an object or null.");
+		}
+		if (typeof loggerProvider.getLogger !== "function") {
+			throw new Error("Trying to set wrong Logger Provider. Logger Provider should provide getLogger() method.");
+		}
+	}
+	G[ROOT_LOGGER_KEY] = loggerProvider;
+}
+
+/**
+ * Lazy initiable Fallback Logger Provider
+ */
+function getFallbackLoggerProvider(): LoggerProvider {
+	if (G[FALLBACK_LOGGER_KEY] === null) {
 		const logLevel: string | undefined = process && process.env && process.env.LOG_LEVEL;
 
 		let config: string | log4js.Configuration;
@@ -60,110 +131,68 @@ function getFallBackLoggerFactory(category: string) {
 				}
 			};
 		}
-		G[FALLBACK_LOGGER_FACTORY_KEY] = new Log4jsManager(config);
+		G[FALLBACK_LOGGER_KEY] = new Log4jsLoggerProvider(config);
 	}
 
-	return G[FALLBACK_LOGGER_FACTORY_KEY].getLogger(category);
+	return G[FALLBACK_LOGGER_KEY];
 }
 
-class DummyLoggerManager implements LoggerManager {
-	public getLogger(category: string): zxteam.Logger {
-		const dummyLog: any = {};
-
-		["trace", "debug", "info", "warn", "error", "fatal"].forEach(level => {
-			dummyLog[level] = () => {/* just a stub */ };
-			const capitalizeLevel = level.charAt(0).toUpperCase() + level.substr(1);
-			Object.defineProperty(dummyLog, `is${capitalizeLevel}Enabled`, {
-				get: () => false
-			});
-		});
-
-		return Object.freeze(dummyLog);
+function getLoggerProvider(): LoggerProvider {
+	if (G[ROOT_LOGGER_KEY] === null) {
+		G[ROOT_LOGGER_KEY] = getFallbackLoggerProvider();
 	}
+	return G[ROOT_LOGGER_KEY];
 }
-class Log4jsManager implements LoggerManager {
-	private readonly _wrap: log4js.Log4js;
 
-	public constructor(config: string | log4js.Configuration) {
-		if (typeof config === "string") {
-			this._wrap = log4js.configure(config);
+class LoggerFacade implements zxteam.Logger {
+	private readonly _name?: string;
+	private _underlay: { provider: LoggerProvider, logger: Logger } | null; //lazy
+
+	public constructor(name?: string) {
+		this._name = name;
+		this._underlay = null;
+	}
+
+	public get isTraceEnabled(): boolean { return this.underlayingLogger.isTraceEnabled; }
+	public get isDebugEnabled(): boolean { return this.underlayingLogger.isDebugEnabled; }
+	public get isInfoEnabled(): boolean { return this.underlayingLogger.isInfoEnabled; }
+	public get isWarnEnabled(): boolean { return this.underlayingLogger.isWarnEnabled; }
+	public get isErrorEnabled(): boolean { return this.underlayingLogger.isErrorEnabled; }
+	public get isFatalEnabled(): boolean { return this.underlayingLogger.isFatalEnabled; }
+
+	public trace(message: string, ...args: any[]): void { this.underlayingLogger.trace(message, ...args); }
+	public debug(message: string, ...args: any[]): void { this.underlayingLogger.debug(message, ...args); }
+	public info(message: string, ...args: any[]): void { this.underlayingLogger.info(message, ...args); }
+	public warn(message: string, ...args: any[]): void { this.underlayingLogger.warn(message, ...args); }
+	public error(message: string, ...args: any[]): void { this.underlayingLogger.error(message, ...args); }
+	public fatal(message: string, ...args: any[]): void { this.underlayingLogger.fatal(message, ...args); }
+
+	public getLogger(name?: string): zxteam.Logger {
+		if (name === undefined || name === "") { return this; }
+		return new LoggerFacade(this._name !== undefined ? `${this._name}.${name}` : name);
+	}
+
+	private get underlayingLogger(): Logger {
+		const currentLoggerProvider = getLoggerProvider();
+
+		if (this._underlay === null) {
+			this._underlay = {
+				provider: currentLoggerProvider,
+				logger: currentLoggerProvider.getLogger(this._name)
+			};
+			return this._underlay.logger;
 		} else {
-			this._wrap = log4js.configure(config);
-		}
-	}
-
-	public getLogger(category: string): zxteam.Logger {
-		const loggerWrap: any = this._wrap.getLogger(category);
-
-		const logger: any = {};
-
-		["trace", "debug", "info", "warn", "error", "fatal"].forEach(level => {
-			logger[level] = (...args: any[]) => loggerWrap[level](...args);
-			const capitalizeLevel = level.charAt(0).toUpperCase() + level.substr(1);
-			Object.defineProperty(logger, `is${capitalizeLevel}Enabled`, {
-				get: () => loggerWrap[`is${capitalizeLevel}Enabled`]()
-			});
-		});
-
-		return logger;
-	}
-}
-
-function getLogger(category: string): zxteam.Logger {
-	let prevEngine: zxteam.Logger | null = null;
-	let innerLogger: zxteam.Logger | null = null;
-
-	const loggerImpl: any = {};
-
-	function getUnderlayingLog() {
-		const currentEngine = G[LOGGER_FACTORY_KEY];
-
-		if (innerLogger !== null) {
-			if (prevEngine === currentEngine) {
-				return innerLogger;
+			if (this._underlay.provider !== currentLoggerProvider) {
+				this._underlay = {
+					provider: currentLoggerProvider,
+					logger: currentLoggerProvider.getLogger(this._name)
+				};
 			}
-			innerLogger = null;
-			prevEngine = null;
 		}
 
-		if (currentEngine !== null) {
-			innerLogger = currentEngine.getLogger(category);
-			if (innerLogger !== undefined) {
-				prevEngine = currentEngine;
-				return innerLogger;
-			}
-			innerLogger = null;
-		}
-
-		return getFallBackLoggerFactory(category);
+		return this._underlay.logger;
 	}
-
-	["trace", "debug", "info", "warn", "error", "fatal"].forEach(level => {
-		loggerImpl[level] = (...args: Array<any>) => { getUnderlayingLog()[level](...args); };
-		const capitalizeLevel = level.charAt(0).toUpperCase() + level.substr(1);
-		Object.defineProperty(loggerImpl, `is${capitalizeLevel}Enabled`, {
-			get: () => getUnderlayingLog()[`is${capitalizeLevel}Enabled`]
-		});
-	});
-
-	return loggerImpl;
 }
 
-export function getUnderlayingManager(): LoggerManager { return G[LOGGER_FACTORY_KEY]; }
-
-export function setUnderlayingManager(newLoggerManager: LoggerManager) {
-	if (newLoggerManager !== null) {
-		if (typeof newLoggerManager !== "object") {
-			throw new Error("Trying to set wrong Logger Manager. Logger Manager should be an object or null");
-		}
-		if (typeof newLoggerManager.getLogger !== "function") {
-			throw new Error(
-				"Trying to set wrong Logger Manager. Logger Manager object should contain a method getLogger(catalog)"
-			);
-		}
-	}
-	G[LOGGER_FACTORY_KEY] = newLoggerManager;
-}
-
-export const loggerManager: LoggerManager = Object.freeze({ getLogger });
-export default loggerManager;
+export const logger: zxteam.Logger = new LoggerFacade();
+export default logger;
