@@ -70,11 +70,11 @@ export class Log4jsLogger implements Logger {
 	public constructor(wrap: log4js.Logger) { this._wrap = wrap; }
 
 	public get isTraceEnabled(): boolean { return this._wrap.isTraceEnabled(); }
-	public get isDebugEnabled(): boolean { return this._wrap.isTraceEnabled(); }
-	public get isInfoEnabled(): boolean { return this._wrap.isTraceEnabled(); }
-	public get isWarnEnabled(): boolean { return this._wrap.isTraceEnabled(); }
-	public get isErrorEnabled(): boolean { return this._wrap.isTraceEnabled(); }
-	public get isFatalEnabled(): boolean { return this._wrap.isTraceEnabled(); }
+	public get isDebugEnabled(): boolean { return this._wrap.isDebugEnabled(); }
+	public get isInfoEnabled(): boolean { return this._wrap.isInfoEnabled(); }
+	public get isWarnEnabled(): boolean { return this._wrap.isWarnEnabled(); }
+	public get isErrorEnabled(): boolean { return this._wrap.isErrorEnabled(); }
+	public get isFatalEnabled(): boolean { return this._wrap.isFatalEnabled(); }
 
 	public trace(message: string, ...args: any[]): void { this._wrap.trace(message, ...args); }
 	public debug(message: string, ...args: any[]): void { this._wrap.debug(message, ...args); }
