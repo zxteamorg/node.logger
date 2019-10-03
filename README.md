@@ -1,4 +1,4 @@
-# ZXTeam's Http Client
+# ZXTeam's Logger
 [![npm version badge](https://img.shields.io/npm/v/@zxteam/logger.svg)](https://www.npmjs.com/package/@zxteam/logger)
 [![downloads badge](https://img.shields.io/npm/dm/@zxteam/logger.svg)](https://www.npmjs.org/package/@zxteam/logger)
 [![commit activity badge](https://img.shields.io/github/commit-activity/m/zxteamorg/node.logger)](https://github.com/zxteamorg/node.logger/pulse)
