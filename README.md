@@ -6,6 +6,11 @@
 [![twitter badge](https://img.shields.io/twitter/follow/zxteamorg?style=social&logo=twitter)](https://twitter.com/zxteamorg)
 
 
+A logger has 6 different levels of logging:
+```
+fatal, error, info, debug, trace, warn.
+```
+
 ### Install
 ```
 npm i @zxteam/logger
