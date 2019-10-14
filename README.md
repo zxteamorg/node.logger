@@ -14,7 +14,7 @@ npm i @zxteam/logger
 ### Examples (TypeScript)
 ```typescript
 import { Logger } from "@zxteam/contract";
-import { logger } from "../../src/index";
+import { logger } from "@zxteam/logger";
 
 const logOn: Logger = logger.getLogger("online");
 const logOff: Logger = logger.getLogger("offline");
