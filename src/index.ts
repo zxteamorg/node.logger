@@ -44,7 +44,7 @@ export interface Logger {
 }
 
 export interface LoggerProvider {
-	getLogger(name?: string, context?: { readonly [name: string]: number | string | boolean }): Logger;
+	getLogger(name: string | null, context?: { readonly [name: string]: number | string | boolean }): Logger;
 }
 
 export class Log4jsLoggerProvider implements LoggerProvider {
@@ -58,9 +58,10 @@ export class Log4jsLoggerProvider implements LoggerProvider {
 		}
 	}
 
-	public getLogger(name?: string, context?: { readonly [name: string]: number | string | boolean }): Logger {
+	public getLogger(name: string | null, context?: { readonly [name: string]: number | string | boolean }): Logger {
 		// TODO: use context inside Log4jsLogger
-		const loggerInstance: log4js.Logger = this._engine.getLogger(name);
+		const loggerInstance: log4js.Logger = name !== null
+			? this._engine.getLogger(name) : this._engine.getLogger();
 		return new Log4jsLogger(loggerInstance);
 	}
 }
@@ -146,12 +147,12 @@ function getLoggerProvider(): LoggerProvider {
 }
 
 class LoggerFacade implements zxteam.Logger {
-	private readonly _name?: string;
+	private readonly _name: string | null;
 	private readonly _context?: { readonly [name: string]: number | string | boolean };
 	private _underlay: { provider: LoggerProvider, logger: Logger } | null; //lazy
 
 	public constructor(name?: string, context?: { readonly [name: string]: number | string | boolean }) {
-		if (name !== undefined) { this._name = name; }
+		this._name = name !== undefined ? name : null;
 		if (context !== undefined) { this._context = context; }
 		this._underlay = null;
 	}
@@ -162,6 +163,14 @@ class LoggerFacade implements zxteam.Logger {
 	public get isWarnEnabled(): boolean { return this.underlayingLogger.isWarnEnabled; }
 	public get isErrorEnabled(): boolean { return this.underlayingLogger.isErrorEnabled; }
 	public get isFatalEnabled(): boolean { return this.underlayingLogger.isFatalEnabled; }
+
+	public get name(): string {
+		if (this._name === null) {
+			return "";
+		}
+
+		return this._name;
+	}
 
 	public trace(message: string, ...args: any[]): void { this.underlayingLogger.trace(message, ...args); }
 	public debug(message: string, ...args: any[]): void { this.underlayingLogger.debug(message, ...args); }
