@@ -4,7 +4,7 @@ const PACKAGE_GUARD: symbol = Symbol.for(packageName);
 if (PACKAGE_GUARD in G) {
 	const conflictVersion = G[PACKAGE_GUARD];
 	// tslint:disable-next-line: max-line-length
-	const msg = `Conflict module version. Look like two different version of package ${packageName} was loaded inside the process: ${conflictVersion} and ${packageVersion}.`;
+	const msg = `Conflict module version. Looks like two different version of package ${packageName} was loaded inside the process: ${conflictVersion} and ${packageVersion}.`;
 	if (process !== undefined && process.env !== undefined && process.env.NODE_ALLOW_CONFLICT_MODULES === "1") {
 		console.warn(msg + " This treats as warning because NODE_ALLOW_CONFLICT_MODULES is set.");
 	} else {
@@ -44,7 +44,7 @@ export interface Logger {
 }
 
 export interface LoggerProvider {
-	getLogger(name?: string): Logger;
+	getLogger(name?: string, context?: { readonly [name: string]: number | string | boolean }): Logger;
 }
 
 export class Log4jsLoggerProvider implements LoggerProvider {
@@ -58,7 +58,8 @@ export class Log4jsLoggerProvider implements LoggerProvider {
 		}
 	}
 
-	public getLogger(name: string): Logger {
+	public getLogger(name?: string, context?: { readonly [name: string]: number | string | boolean }): Logger {
+		// TODO: use context inside Log4jsLogger
 		const loggerInstance: log4js.Logger = this._engine.getLogger(name);
 		return new Log4jsLogger(loggerInstance);
 	}
@@ -146,10 +147,12 @@ function getLoggerProvider(): LoggerProvider {
 
 class LoggerFacade implements zxteam.Logger {
 	private readonly _name?: string;
+	private readonly _context?: { readonly [name: string]: number | string | boolean };
 	private _underlay: { provider: LoggerProvider, logger: Logger } | null; //lazy
 
-	public constructor(name?: string) {
-		this._name = name;
+	public constructor(name?: string, context?: { readonly [name: string]: number | string | boolean }) {
+		if (name !== undefined) { this._name = name; }
+		if (context !== undefined) { this._context = context; }
 		this._underlay = null;
 	}
 
@@ -167,9 +170,15 @@ class LoggerFacade implements zxteam.Logger {
 	public error(message: string, ...args: any[]): void { this.underlayingLogger.error(message, ...args); }
 	public fatal(message: string, ...args: any[]): void { this.underlayingLogger.fatal(message, ...args); }
 
-	public getLogger(name?: string): zxteam.Logger {
+	public getLogger(name?: string, context?: { readonly [name: string]: number | string | boolean }): zxteam.Logger {
 		if (name === undefined || name === "") { return this; }
-		return new LoggerFacade(this._name !== undefined ? `${this._name}.${name}` : name);
+		if (context !== undefined && this._context !== null) {
+			context = { ...this._context, ...context };
+		}
+		return new LoggerFacade(
+			this._name !== null ? `${this._name}.${name}` : name,
+			context
+		);
 	}
 
 	private get underlayingLogger(): Logger {
@@ -178,14 +187,14 @@ class LoggerFacade implements zxteam.Logger {
 		if (this._underlay === null) {
 			this._underlay = {
 				provider: currentLoggerProvider,
-				logger: currentLoggerProvider.getLogger(this._name)
+				logger: currentLoggerProvider.getLogger(this._name, this._context)
 			};
 			return this._underlay.logger;
 		} else {
 			if (this._underlay.provider !== currentLoggerProvider) {
 				this._underlay = {
 					provider: currentLoggerProvider,
-					logger: currentLoggerProvider.getLogger(this._name)
+					logger: currentLoggerProvider.getLogger(this._name, this._context)
 				};
 			}
 		}
